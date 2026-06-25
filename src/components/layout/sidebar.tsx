@@ -2,150 +2,189 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Key,
-  BarChart3,
-  CreditCard,
-  Webhook,
-  Receipt,
-  Building2,
-  User,
-  Settings,
-  Moon,
-  Sun,
-  ChevronLeft,
-  Package,
-  Terminal,
-} from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, DASHBOARD_ROUTES } from "@/constants";
-import { useTheme } from "@/providers/theme-provider";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useSession } from "next-auth/react";
+import { DASHBOARD_ROUTES, SIDEBAR_NAV_ITEMS } from "@/constants";
+import { authService } from "@/services/auth.service";
+import { setAuthTokens } from "@/services/api";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-const iconMap = {
-  LayoutDashboard,
-  Key,
-  Terminal,
-  BarChart3,
-  CreditCard,
-  Webhook,
-  Receipt,
-  Building2,
-  User,
-  Settings,
-} as const;
-
-interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
+interface SidebarNavContentProps {
+  className?: string;
+  onNavigate?: () => void;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const pathname = usePathname();
-  const { theme, toggleTheme } = useTheme();
-  const { data: session } = useSession();
-  const email = session?.user?.email ?? "";
-  const initials = email.slice(0, 2).toUpperCase();
+function SidebarIconButton({
+  label,
+  href,
+  icon,
+  isActive,
+  onNavigate,
+}: {
+  label: string;
+  href?: string;
+  icon: string;
+  isActive?: boolean;
+  onNavigate?: () => void;
+}) {
+  const className = cn("sidebar-nav-btn", isActive && "sidebar-nav-btn-active");
+
+  const inner = (
+    <i className={cn("ti", icon, "text-[20px] leading-none")} aria-hidden />
+  );
+
+  if (href) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              href={href}
+              onClick={onNavigate}
+              className={className}
+              aria-label={label}
+              aria-current={isActive ? "page" : undefined}
+            />
+          }
+        >
+          {inner}
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
-    <aside
-      className={cn(
-        "hidden lg:flex flex-col border-r border-border bg-sidebar h-full transition-all duration-300",
-        collapsed ? "w-[72px]" : "w-64",
-      )}
-    >
-      <div className="flex h-16 items-center gap-3 border-b border-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/15">
-          <Package className="h-5 w-5 text-accent" />
-        </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="font-heading text-sm font-semibold truncate">
-              Kigali-Pack
-            </p>
-            <p className="text-[11px] text-muted-foreground">Cloud Engine</p>
-          </div>
-        )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className={cn("ml-auto shrink-0", collapsed && "mx-auto")}
-          onClick={onToggle}
-        >
-          <ChevronLeft
-            className={cn(
-              "h-4 w-4 transition-transform",
-              collapsed && "rotate-180",
-            )}
-          />
-        </Button>
-      </div>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button type="button" className={className} aria-label={label} />
+        }
+      >
+        {inner}
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
-      <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
-          const Icon = iconMap[item.icon as keyof typeof iconMap];
-          const isActive =
-            pathname === item.href ||
-            (item.href !== DASHBOARD_ROUTES.overview &&
-              pathname.startsWith(item.href));
+export function SidebarNavContent({
+  className,
+  onNavigate,
+}: SidebarNavContentProps) {
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const email = session?.user?.email ?? "";
+  const initials = email.slice(0, 2).toUpperCase() || "SJ";
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-small font-medium transition-colors",
-                isActive
-                  ? "bg-accent/15 text-accent"
-                  : "text-muted-foreground hover:bg-hover hover:text-foreground",
-                collapsed && "justify-center px-2",
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
+  const handleLogout = async () => {
+    onNavigate?.();
+    const refreshToken = session?.user?.refreshToken;
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch {
+        // proceed with sign out even if API call fails
+      }
+    }
+    setAuthTokens(null);
+    await signOut({ callbackUrl: "/login" });
+  };
 
-      <div className="border-t border-border p-3 space-y-2">
+  const isActive = (href: string) =>
+    pathname === href ||
+    (href !== DASHBOARD_ROUTES.overview && pathname.startsWith(href));
+
+  return (
+    <div className={cn("flex flex-col items-center gap-3", className)}>
+      {/* Card 1 — Logo */}
+      <div className="sidebar-card py-3">
         <Link
-          href={DASHBOARD_ROUTES.profile}
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-hover transition-colors",
-            collapsed && "justify-center",
-          )}
+          href={DASHBOARD_ROUTES.overview}
+          onClick={onNavigate}
+          className="sidebar-logo"
+          aria-label="Kigali-Pack home"
         >
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-secondary text-xs">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-small font-medium truncate">{email}</p>
-              <p className="text-[11px] text-muted-foreground">Developer</p>
-            </div>
-          )}
+          <i className="ti ti-package text-[20px] leading-none" aria-hidden />
         </Link>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn("w-full", collapsed ? "justify-center px-2" : "justify-start")}
-          onClick={toggleTheme}
-        >
-          {theme === "dark" ? (
-            <Sun className="h-4 w-4" />
-          ) : (
-            <Moon className="h-4 w-4" />
-          )}
-          {!collapsed && <span className="ml-2">Toggle theme</span>}
-        </Button>
       </div>
+
+      {/* Card 2 — Navigation */}
+      <div className="sidebar-card flex-1 min-h-0 py-2 gap-0.5">
+        {SIDEBAR_NAV_ITEMS.map((item) => (
+          <SidebarIconButton
+            key={item.href}
+            label={item.label}
+            href={item.href}
+            icon={item.icon}
+            isActive={isActive(item.href)}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </div>
+
+      {/* Card 3 — Account */}
+      <div className="sidebar-card py-2 gap-0.5">
+        <SidebarIconButton
+          label="Settings"
+          href={DASHBOARD_ROUTES.settings}
+          icon="ti-settings"
+          isActive={isActive(DASHBOARD_ROUTES.settings)}
+          onNavigate={onNavigate}
+        />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className="sidebar-nav-btn"
+                aria-label="Sign out"
+                onClick={handleLogout}
+              />
+            }
+          >
+            <i className="ti ti-logout text-[20px] leading-none" aria-hidden />
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            Sign out
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href={DASHBOARD_ROUTES.profile}
+                onClick={onNavigate}
+                className="sidebar-avatar mt-0.5"
+                aria-label="Profile"
+              />
+            }
+          >
+            <span className="text-[11px] font-semibold leading-none">
+              {initials}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            Profile
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside className="hidden lg:flex h-full w-16 shrink-0 flex-col items-center py-3">
+      <SidebarNavContent className="h-full w-full" />
     </aside>
   );
 }

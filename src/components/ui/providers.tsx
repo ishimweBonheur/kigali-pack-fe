@@ -2,12 +2,22 @@
 
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import axios from "axios";
 import { useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthTokenSync } from "@/providers/auth-token-sync";
+import { AuthReadyProvider } from "@/providers/auth-ready-context";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { KeyboardShortcuts } from "@/providers/keyboard-shortcuts";
+
+function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status === 401 || status === 403 || status === 429) return false;
+  }
+  if (axios.isCancel(error)) return false;
+  return failureCount < 1;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -17,30 +27,32 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 60 * 1000,
             refetchOnWindowFocus: false,
-            retry: 1,
+            refetchOnReconnect: false,
+            retry: shouldRetryQuery,
           },
         },
       }),
   );
 
   return (
-    <SessionProvider>
+    <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <TooltipProvider>
-            <AuthTokenSync />
-            <KeyboardShortcuts />
-            {children}
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                classNames: {
-                  toast: "glass-card border-border text-foreground",
-                },
-              }}
-            />
-          </TooltipProvider>
-        </ThemeProvider>
+        <AuthReadyProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <KeyboardShortcuts />
+              {children}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  classNames: {
+                    toast: "glass-card border-border text-foreground",
+                  },
+                }}
+              />
+            </TooltipProvider>
+          </ThemeProvider>
+        </AuthReadyProvider>
       </QueryClientProvider>
     </SessionProvider>
   );

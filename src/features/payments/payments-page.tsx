@@ -39,6 +39,7 @@ import {
 } from "@/schemas/payments";
 import { DEFAULT_PAGE_SIZE } from "@/constants";
 import { formatCurrency, formatDateTime, getErrorMessage } from "@/utils";
+import { normalizeListItems } from "@/utils/list";
 import { toast } from "sonner";
 
 export function PaymentsPage() {
@@ -94,7 +95,9 @@ export function PaymentsPage() {
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
-  const items = historyQuery.data?.items ?? [];
+  const items = normalizeListItems(historyQuery.data?.items);
+  const testAccounts = testAccountsQuery.data?.accounts ?? [];
+  const testRules = testAccountsQuery.data?.rules ?? {};
 
   return (
     <div>
@@ -110,7 +113,7 @@ export function PaymentsPage() {
           <TabsTrigger value="webhook-test">Webhook test</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="simulator" className="space-y-6">
+        <TabsContent key="simulator" value="simulator" className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
             <GlassCard>
               <h3 className="font-heading text-lg font-semibold mb-4 flex items-center gap-2">
@@ -195,7 +198,7 @@ export function PaymentsPage() {
                 <div className="space-y-4 text-small">
                   <div>
                     <p className="text-muted-foreground mb-2">Accounts</p>
-                    {testAccountsQuery.data.accounts.map((a) => (
+                    {testAccounts.map((a) => (
                       <div
                         key={a.phone}
                         className="flex justify-between py-1.5 border-b border-border last:border-0"
@@ -207,7 +210,7 @@ export function PaymentsPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground mb-2">Amount triggers</p>
-                    {Object.entries(testAccountsQuery.data.rules).map(
+                    {Object.entries(testRules).map(
                       ([key, val]) => (
                         <div key={key} className="py-1">
                           <span className="text-accent">{key}</span>: {val}
@@ -221,7 +224,7 @@ export function PaymentsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="transactions">
+        <TabsContent key="transactions" value="transactions">
           <GlassCard className="p-0 overflow-hidden">
             {historyQuery.isLoading ? (
               <div className="p-6"><TableSkeleton /></div>
@@ -232,6 +235,7 @@ export function PaymentsPage() {
                 description="Run a sandbox payment to see history here"
               />
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
@@ -268,6 +272,7 @@ export function PaymentsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
             <div className="px-6 pb-4">
               <PaginationControls
@@ -329,7 +334,7 @@ export function PaymentsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="webhook-test">
+        <TabsContent key="webhook-test" value="webhook-test">
           <GlassCard>
             <h3 className="font-heading text-lg font-semibold mb-4 flex items-center gap-2">
               <Webhook className="h-4 w-4 text-accent" />

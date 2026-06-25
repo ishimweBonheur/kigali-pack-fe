@@ -54,6 +54,7 @@ export function BillingPage() {
     mutationFn: billingService.subscribe,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["usage-counter"] });
       toast.success("Plan upgraded successfully");
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -88,7 +89,7 @@ export function BillingPage() {
           <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="plan">
+        <TabsContent key="plan" value="plan">
           <GlassCard className="p-6">
             {subscriptionQuery.isLoading ? (
               <TableSkeleton rows={2} />
@@ -141,7 +142,7 @@ export function BillingPage() {
           </GlassCard>
         </TabsContent>
 
-        <TabsContent value="invoices">
+        <TabsContent key="invoices" value="invoices">
           <GlassCard className="p-0 overflow-hidden">
             {invoicesQuery.isLoading ? (
               <div className="p-6"><TableSkeleton /></div>
@@ -152,32 +153,34 @@ export function BillingPage() {
                 description="Invoices will appear here after billing cycles"
               />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Due date</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((inv) => (
-                    <TableRow key={inv.id} className="border-border">
-                      <TableCell className="font-numbers font-medium">
-                        {formatCurrency(inv.amountRwf)}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={inv.status} />
-                      </TableCell>
-                      <TableCell>{formatDate(inv.dueDate)}</TableCell>
-                      <TableCell className="text-muted-foreground text-small">
-                        {formatDate(inv.createdAt)}
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Due date</TableHead>
+                      <TableHead>Created</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices.map((inv) => (
+                      <TableRow key={inv.id} className="border-border">
+                        <TableCell className="font-numbers font-medium">
+                          {formatCurrency(inv.amountRwf)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={inv.status} />
+                        </TableCell>
+                        <TableCell>{formatDate(inv.dueDate)}</TableCell>
+                        <TableCell className="text-muted-foreground text-small">
+                          {formatDate(inv.createdAt)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
             <div className="px-6 pb-4">
               <PaginationControls
@@ -188,7 +191,7 @@ export function BillingPage() {
           </GlassCard>
         </TabsContent>
 
-        <TabsContent value="usage">
+        <TabsContent key="usage" value="usage">
           <GlassCard className="p-6">
             {usageQuery.isLoading ? (
               <TableSkeleton rows={2} />
@@ -223,7 +226,7 @@ export function BillingPage() {
           </GlassCard>
         </TabsContent>
 
-        <TabsContent value="upgrade">
+        <TabsContent key="upgrade" value="upgrade">
           <div className="grid gap-4 md:grid-cols-3">
             {plansQuery.isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
@@ -231,9 +234,17 @@ export function BillingPage() {
                   <TableSkeleton rows={3} />
                 </GlassCard>
               ))
+            ) : plans.length === 0 ? (
+              <EmptyState
+                icon={Receipt}
+                title="No plans available"
+                description="Billing plans could not be loaded"
+              />
             ) : (
               plans.map((plan) => {
                 const isCurrent = subscription?.plan?.code === plan.code;
+                const features = Array.isArray(plan.features) ? plan.features : [];
+
                 return (
                   <GlassCard
                     key={plan.id}
@@ -251,7 +262,7 @@ export function BillingPage() {
                       <span className="text-small text-muted-foreground">/mo</span>
                     </p>
                     <ul className="mt-4 space-y-2 text-small">
-                      {plan.features.map((f) => (
+                      {features.map((f) => (
                         <li key={f} className="text-muted-foreground">
                           • {f}
                         </li>

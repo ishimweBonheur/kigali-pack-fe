@@ -52,7 +52,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       const expiresAt = token.expiresAt as number | undefined;
-      if (expiresAt && Date.now() < expiresAt - 60_000) {
+      // Only refresh after the access token has actually expired
+      if (!expiresAt || Date.now() < expiresAt) {
         return token;
       }
 
@@ -64,7 +65,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const sessionUser = authUserToSession(refreshed);
         return { ...token, ...sessionUser };
       } catch {
-        return null;
+        return { ...token, error: "RefreshAccessTokenError" };
       }
     },
     session: async ({ session, token }) => {

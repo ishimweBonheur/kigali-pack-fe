@@ -43,6 +43,17 @@ export const DASHBOARD_ROUTES = {
   settings: "/dashboard/settings",
 } as const;
 
+/** Primary sidebar navigation (7 icon-only items). */
+export const SIDEBAR_NAV_ITEMS = [
+  { label: "Overview", href: DASHBOARD_ROUTES.overview, icon: "ti-layout-dashboard" },
+  { label: "API Keys", href: DASHBOARD_ROUTES.apiKeys, icon: "ti-key" },
+  { label: "Playground", href: DASHBOARD_ROUTES.playground, icon: "ti-terminal-2" },
+  { label: "Analytics", href: DASHBOARD_ROUTES.analytics, icon: "ti-chart-bar" },
+  { label: "Payments", href: DASHBOARD_ROUTES.payments, icon: "ti-credit-card" },
+  { label: "Webhooks", href: DASHBOARD_ROUTES.webhooks, icon: "ti-webhook" },
+  { label: "Billing", href: DASHBOARD_ROUTES.billing, icon: "ti-receipt" },
+] as const;
+
 export const NAV_ITEMS = [
   { label: "Overview", href: DASHBOARD_ROUTES.overview, icon: "LayoutDashboard" },
   { label: "API Keys", href: DASHBOARD_ROUTES.apiKeys, icon: "Key" },

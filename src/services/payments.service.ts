@@ -4,6 +4,7 @@ import type {
   SandboxTransaction,
   PaginationMeta,
 } from "@/types";
+import { normalizeListItems } from "@/utils/list";
 import type {
   MockPaymentInput,
   SimulateWebhookInput,
@@ -55,7 +56,10 @@ export const paymentsService = {
         meta?: { pagination?: PaginationMeta };
       }
     >("/v1/sandbox/payments/history", { params: query });
-    return { items: data.data, pagination: data.meta?.pagination };
+    return {
+      items: normalizeListItems(data.data),
+      pagination: data.meta?.pagination,
+    };
   },
 
   async getTransaction(id: string): Promise<SandboxTransaction> {
