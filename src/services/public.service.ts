@@ -71,8 +71,19 @@ export const publicService = {
     token?: string,
     body?: unknown,
   ): Promise<ProbeResult> {
+    const headers: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+    return this.probeEndpointWithHeaders(method, path, headers, body);
+  },
+
+  async probeEndpointWithHeaders(
+    method: "GET" | "POST" | "PATCH" | "DELETE",
+    path: string,
+    headers: Record<string, string> = {},
+    body?: unknown,
+  ): Promise<ProbeResult> {
     const start = performance.now();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const response = await publicApi.request({
         method,

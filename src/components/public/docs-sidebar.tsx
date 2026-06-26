@@ -33,7 +33,7 @@ export function DocsSidebar() {
   return (
     <>
       {/* Mobile: horizontal scroll nav */}
-      <nav className="lg:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
+      <nav className="lg:hidden overflow-x-auto scrollbar-hide pb-2">
         <div className="flex gap-1 pb-2 min-w-max">
           {DOC_NAV.map((item) => {
             const href = `/docs/${item.slug}`;
@@ -57,7 +57,7 @@ export function DocsSidebar() {
       </nav>
 
       {/* Desktop: sticky sidebar */}
-      <aside className="hidden lg:block w-56 shrink-0">
+      <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
         <nav className="sticky top-24 space-y-1 max-h-[calc(100vh-7rem)] overflow-y-auto">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-3">
             Documentation

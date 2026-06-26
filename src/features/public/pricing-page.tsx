@@ -10,6 +10,7 @@ import { publicService } from "@/services/public.service";
 import { formatCurrency, formatNumber } from "@/utils";
 import type { BillingPlan } from "@/types";
 import { PUBLIC_ROUTES } from "@/constants/public";
+import { PublicPageShell } from "@/components/public/public-page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const COMPARISON_FEATURES = [
@@ -28,7 +29,7 @@ export function PricingPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+      <PublicPageShell className="py-16">
         <PageHeader
           title="Pricing"
           description="Plans loaded live from the Kigali-Pack billing API. No mock data."
@@ -133,7 +134,7 @@ export function PricingPage() {
             </div>
           </>
         )}
-      </div>
+      </PublicPageShell>
       <CtaBanner />
     </>
   );

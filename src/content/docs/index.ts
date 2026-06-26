@@ -43,6 +43,44 @@ All responses follow a consistent envelope:
 \`\`\``,
   },
   {
+    slug: "environment-setup",
+    title: "Environment Setup",
+    description: "Configure API URL and API keys in your application.",
+    category: "Getting Started",
+    content: `## Overview
+
+Every integration needs two values:
+
+| Variable | Purpose |
+|----------|---------|
+| \`NEXT_PUBLIC_API_URL\` | Base URL for the Kigali-Pack API |
+| \`API_KEY\` | Your \`kp_test_\`, \`kp_live_\`, or \`kp_sandbox_\` key |
+
+## Security
+
+- Never commit API keys to git
+- Use server-side environment variables in Next.js for secrets
+- Rotate keys from **Dashboard → API Keys** if exposed
+
+## Authorization header
+
+All authenticated requests use:
+
+\`\`\`
+Authorization: Bearer kp_live_xxxxx
+\`\`\`
+
+Generate keys after email verification at **/get-started** or in the dashboard.`,
+    codeExamples: [
+      {
+        label: ".env.local",
+        language: "bash",
+        code: `NEXT_PUBLIC_API_URL=${process.env.NEXT_PUBLIC_API_URL ?? "https://api.kigalipack.rw"}
+API_KEY=kp_live_xxxxx`,
+      },
+    ],
+  },
+  {
     slug: "quick-start",
     title: "Quick Start",
     description: "Get up and running in minutes.",

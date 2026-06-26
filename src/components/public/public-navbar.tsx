@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PUBLIC_NAV, PUBLIC_ROUTES } from "@/constants/public";
+import { PUBLIC_PAGE_PADDING } from "@/components/public/public-page-shell";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useSession } from "next-auth/react";
 
@@ -23,8 +24,13 @@ export function PublicNavbar() {
     pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-50 px-4 pt-4 pb-2 sm:pt-5">
-      <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-3 rounded-2xl border border-border bg-background/95 px-4 sm:px-6 lg:px-10">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div
+        className={cn(
+          PUBLIC_PAGE_PADDING,
+          "flex h-14 sm:h-16 w-full items-center justify-between gap-3",
+        )}
+      >
         <Link
           href={PUBLIC_ROUTES.home}
           className="flex min-w-0 shrink-0 items-center gap-2.5"

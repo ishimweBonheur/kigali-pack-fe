@@ -22,6 +22,7 @@ export const FOOTER_LINKS = {
     { label: "Get Started", href: PUBLIC_ROUTES.getStarted },
   ],
   developers: [
+    { label: "Environment Setup", href: "/docs/environment-setup" },
     { label: "Quick Start", href: "/docs/quick-start" },
     { label: "Authentication", href: "/docs/authentication" },
     { label: "Locations API", href: "/docs/locations" },

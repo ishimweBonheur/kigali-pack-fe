@@ -21,6 +21,9 @@ export interface ApiEndpointDefinition {
   bodyExample?: Record<string, unknown>;
   bodySchema?: string;
   docSlug?: string;
+  responsePreview?: string;
+  errors?: Array<{ status: number; code: string; description: string }>;
+  authentication?: string;
 }
 
 export const API_CATEGORIES = [
@@ -44,6 +47,17 @@ export const API_ENDPOINTS: ApiEndpointDefinition[] = [
     path: "/v1/locations/root-provinces",
     requiresAuth: false,
     docSlug: "locations",
+    authentication: "None — public endpoint",
+    responsePreview: `{
+  "success": true,
+  "message": "Root provinces retrieved",
+  "data": [
+    { "id": "uuid", "name": "Kigali City", "level": "PROVINCE", "code": "01" }
+  ]
+}`,
+    errors: [
+      { status: 429, code: "RATE_LIMITED", description: "Too many requests" },
+    ],
   },
   {
     id: "nida-mock",

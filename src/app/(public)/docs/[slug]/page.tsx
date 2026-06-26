@@ -28,9 +28,5 @@ export default async function DocPage({ params }: PageProps) {
   const doc = getDocBySlug(slug);
   if (!doc) notFound();
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-      <InteractiveDocPage doc={doc} />
-    </div>
-  );
+  return <InteractiveDocPage doc={doc} />;
 }

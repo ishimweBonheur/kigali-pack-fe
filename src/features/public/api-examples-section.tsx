@@ -9,6 +9,7 @@ import { CodeBlock } from "@/components/public/code-block";
 import { publicService } from "@/services/public.service";
 import { API_BASE_URL } from "@/constants";
 import { PUBLIC_ROUTES } from "@/constants/public";
+import { PublicPageShell } from "@/components/public/public-page-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ApiExampleCardProps {
@@ -136,17 +137,18 @@ function ApiExampleCard({
 
 export function ApiExamplesSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 lg:px-8 py-24">
-      <div className="text-center mb-12">
-        <h2 className="font-heading text-3xl md:text-4xl font-semibold">
-          Real API examples
-        </h2>
-        <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-          Live responses from the Kigali-Pack API — no mock data. Public
-          endpoints fetch directly from the database.
-        </p>
-      </div>
-      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <section className="w-full py-24">
+      <PublicPageShell>
+        <div className="text-center mb-12">
+          <h2 className="font-heading text-3xl md:text-4xl font-semibold">
+            Real API examples
+          </h2>
+          <p className="mt-3 text-muted-foreground max-w-3xl mx-auto">
+            Live responses from the Kigali-Pack API — no mock data. Public
+            endpoints fetch directly from the database.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         <ApiExampleCard
           title="Root provinces"
           method="GET"
@@ -173,7 +175,8 @@ export function ApiExamplesSection() {
           }}
           description="Simulate MTN MoMo or Airtel Money payment charge."
         />
-      </div>
+        </div>
+      </PublicPageShell>
     </section>
   );
 }

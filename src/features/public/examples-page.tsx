@@ -10,6 +10,7 @@ import { CtaBanner } from "@/components/public/cta-banner";
 import { publicService } from "@/services/public.service";
 import { API_BASE_URL } from "@/constants";
 import { PUBLIC_ROUTES } from "@/constants/public";
+import { PublicPageShell } from "@/components/public/public-page-shell";
 
 const EXAMPLES = [
   {
@@ -139,17 +140,17 @@ function ExampleCard({
 export function ExamplesPage() {
   return (
     <>
-      <div className="mx-auto max-w-5xl px-4 lg:px-8 py-16">
+      <PublicPageShell className="py-16">
         <PageHeader
           title="API Examples"
           description="Interactive examples with live responses from the Kigali-Pack API."
         />
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2">
           {EXAMPLES.map((ex) => (
             <ExampleCard key={ex.id} example={ex} />
           ))}
         </div>
-      </div>
+      </PublicPageShell>
       <CtaBanner />
     </>
   );

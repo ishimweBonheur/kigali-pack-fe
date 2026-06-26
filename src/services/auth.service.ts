@@ -56,6 +56,29 @@ export const authService = {
   async verifyEmail(token: string): Promise<void> {
     await api.post("/v1/auth/verify-email", { token });
   },
+
+  async resendVerificationEmail(): Promise<{
+    verificationEmailSent: boolean;
+    message: string;
+  }> {
+    const { data } = await api.post<
+      ApiSuccessResponse<{
+        verificationEmailSent: boolean;
+        message: string;
+      }>
+    >("/v1/auth/resend-verification");
+    return data.data;
+  },
+
+  async getVerificationStatus(): Promise<{
+    email: string;
+    emailVerified: boolean;
+  }> {
+    const { data } = await api.get<
+      ApiSuccessResponse<{ email: string; emailVerified: boolean }>
+    >("/v1/auth/verification-status");
+    return data.data;
+  },
 };
 
 export const profileService = {

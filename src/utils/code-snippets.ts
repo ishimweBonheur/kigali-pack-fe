@@ -5,6 +5,8 @@ export type CodeLanguage =
   | "javascript"
   | "typescript"
   | "nodejs"
+  | "axios"
+  | "express"
   | "react"
   | "nextjs";
 
@@ -75,6 +77,38 @@ const { data } = await axios.${opts.method.toLowerCase()}("${url}"${hasBody ? `,
 
 console.log(data);`;
 
+    case "axios":
+      return `import axios from "axios";
+
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "${base}",
+  headers: {
+    Authorization: \`Bearer \${process.env.API_KEY ?? "${key}"}\`,
+  },
+});
+
+const { data } = await api.${opts.method.toLowerCase()}("${opts.path}"${hasBody ? `, ${bodyJson}` : ""});
+console.log(data.data);`;
+
+    case "express":
+      return `import express from "express";
+
+const app = express();
+app.use(express.json());
+
+app.${opts.method.toLowerCase()}("${opts.path}", async (req, res) => {
+  const response = await fetch("${url}", {
+    method: "${opts.method}",
+    headers: {
+      Authorization: \`Bearer \${process.env.API_KEY}\`,
+      "Content-Type": "application/json",
+    },${hasBody ? `\n    body: JSON.stringify(req.body),` : ""}
+  });
+
+  const data = await response.json();
+  res.status(response.status).json(data);
+});`;
+
     case "react":
       return `"use client";
 
@@ -119,9 +153,11 @@ export async function ${opts.method === "GET" ? "GET" : "POST"}() {
 
 export const CODE_LANGUAGES: { id: CodeLanguage; label: string }[] = [
   { id: "curl", label: "curl" },
-  { id: "javascript", label: "JavaScript" },
+  { id: "javascript", label: "fetch" },
+  { id: "axios", label: "axios" },
+  { id: "nodejs", label: "Node.js" },
+  { id: "express", label: "Express" },
   { id: "typescript", label: "TypeScript" },
-  { id: "nodejs", label: "Node.js (axios)" },
   { id: "react", label: "React" },
-  { id: "nextjs", label: "Next.js App Router" },
+  { id: "nextjs", label: "Next.js" },
 ];

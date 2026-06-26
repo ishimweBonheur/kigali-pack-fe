@@ -15,6 +15,7 @@ import {
 import { ApiTerminal } from "@/components/public/api-terminal";
 import { ApiExamplesSection } from "@/features/public/api-examples-section";
 import { CtaBanner } from "@/components/public/cta-banner";
+import { PublicPageShell } from "@/components/public/public-page-shell";
 import { PUBLIC_ROUTES } from "@/constants/public";
 import { publicService } from "@/services/public.service";
 import { formatCurrency } from "@/utils";
@@ -93,7 +94,7 @@ export function LandingPage() {
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-accent/5 blur-3xl" />
         </div>
-        <div className="mx-auto max-w-7xl px-4 lg:px-8 py-20 lg:py-28">
+        <PublicPageShell className="py-20 lg:py-28">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -134,12 +135,12 @@ export function LandingPage() {
               <ApiTerminal />
             </motion.div>
           </div>
-        </div>
+        </PublicPageShell>
       </section>
 
       {/* Features */}
       <section className="border-y border-border bg-card/30 py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+        <PublicPageShell>
           <div className="text-center mb-14">
             <h2 className="font-heading text-3xl md:text-4xl font-semibold">
               Everything developers need
@@ -148,7 +149,7 @@ export function LandingPage() {
               One API for Rwanda-specific infrastructure
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
             {FEATURES.map((f, i) => (
               <motion.div
                 key={f.title}
@@ -168,22 +169,22 @@ export function LandingPage() {
               </motion.div>
             ))}
           </div>
-        </div>
+        </PublicPageShell>
       </section>
 
       <ApiExamplesSection />
 
       {/* How it works */}
       <section className="py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+        <PublicPageShell>
           <h2 className="font-heading text-3xl font-semibold text-center mb-14">
             How it works
           </h2>
-          <div className="grid gap-8 md:grid-cols-4">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => (
               <div key={s.step} className="relative text-center">
                 {i < STEPS.length - 1 && (
-                  <div className="hidden md:block absolute top-6 left-[60%] w-[80%] h-px bg-border" />
+                  <div className="hidden lg:block absolute top-6 left-[60%] w-[80%] h-px bg-border" />
                 )}
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 font-mono text-sm font-semibold text-accent mb-4">
                   {s.step}
@@ -193,16 +194,16 @@ export function LandingPage() {
               </div>
             ))}
           </div>
-        </div>
+        </PublicPageShell>
       </section>
 
       {/* Developer workflow */}
       <section className="border-y border-border bg-card/30 py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8 text-center">
+        <PublicPageShell className="text-center">
           <h2 className="font-heading text-3xl font-semibold mb-4">
             Developer workflow
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto mb-10">
+          <p className="text-muted-foreground max-w-3xl mx-auto mb-10">
             From registration to production — a streamlined path with docs,
             sandbox, and dashboard tooling.
           </p>
@@ -224,7 +225,7 @@ export function LandingPage() {
           >
             View onboarding guide
           </Link>
-        </div>
+        </PublicPageShell>
       </section>
 
       {/* Pricing preview */}
@@ -232,12 +233,15 @@ export function LandingPage() {
 
       {/* FAQ */}
       <section className="py-24">
-        <div className="mx-auto max-w-2xl px-4 lg:px-8">
+        <PublicPageShell>
           <h2 className="font-heading text-3xl font-semibold text-center mb-10">
             Frequently asked questions
           </h2>
-          <FaqAccordion items={FAQ} />
-        </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FaqAccordion items={FAQ.slice(0, 2)} />
+            <FaqAccordion items={FAQ.slice(2)} />
+          </div>
+        </PublicPageShell>
       </section>
 
       <CtaBanner />
@@ -269,7 +273,7 @@ function FaqAccordion({ items }: { items: typeof FAQ }) {
 function PricingPreview() {
   return (
     <section className="py-24">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8 text-center">
+      <PublicPageShell className="text-center">
         <h2 className="font-heading text-3xl font-semibold mb-4">
           Simple, transparent pricing
         </h2>
@@ -283,7 +287,7 @@ function PricingPreview() {
         >
           View all plans
         </Link>
-      </div>
+      </PublicPageShell>
     </section>
   );
 }
@@ -296,7 +300,7 @@ function PricingPreviewCards() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
           <div key={i} className="glass-card rounded-xl h-48 animate-pulse" />
         ))}
@@ -305,7 +309,7 @@ function PricingPreviewCards() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {(plans ?? []).slice(0, 3).map((plan: BillingPlan) => (
         <div
           key={plan.id}

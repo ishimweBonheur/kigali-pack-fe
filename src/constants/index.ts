@@ -80,3 +80,4 @@ export const API_KEY_ENVIRONMENTS = ["LIVE", "TEST", "SANDBOX"] as const;
 export const DEFAULT_PAGE_SIZE = 10;
 
 export const ONBOARDING_STORAGE_KEY = "kp-onboarding-v1";
+export const API_KEY_STORAGE_KEY = "kp-api-key-v1";

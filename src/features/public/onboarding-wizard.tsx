@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -14,21 +14,21 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertTriangle,
-  Database,
   Loader2,
+  RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  registerSchema,
-  verifyEmailSchema,
-  type RegisterInput,
-  type VerifyEmailInput,
-} from "@/schemas/auth";
-import { authService } from "@/services/auth.service";
+import { registerSchema, type RegisterInput } from "@/schemas/auth";
+import { authService, profileService } from "@/services/auth.service";
 import { apiKeysService } from "@/services/api-keys.service";
 import { publicService } from "@/services/public.service";
-import { ONBOARDING_STORAGE_KEY } from "@/constants";
+import {
+  ONBOARDING_STORAGE_KEY,
+  API_KEY_STORAGE_KEY,
+  API_PUBLIC_URL,
+} from "@/constants";
 import { PUBLIC_ROUTES } from "@/constants/public";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,12 +46,14 @@ import { CodeBlock } from "@/components/public/code-block";
 import { copyToClipboard, getErrorMessage } from "@/utils";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PublicPageShell } from "@/components/public/public-page-shell";
 
 interface OnboardingState {
   step: number;
   email?: string;
   verified: boolean;
   apiKey?: string;
+  keyCopied: boolean;
   firstRequestOk: boolean;
   completed: boolean;
 }
@@ -59,17 +61,18 @@ interface OnboardingState {
 const DEFAULT_STATE: OnboardingState = {
   step: 1,
   verified: false,
+  keyCopied: false,
   firstRequestOk: false,
   completed: false,
 };
 
 const STEPS = [
-  { num: 1, label: "Create Account", icon: UserPlus },
+  { num: 1, label: "Register", icon: UserPlus },
   { num: 2, label: "Verify Email", icon: Mail },
   { num: 3, label: "Generate Key", icon: Key },
   { num: 4, label: "Copy Key", icon: Copy },
-  { num: 5, label: "First Request", icon: Terminal },
-  { num: 6, label: "Complete", icon: CheckCircle2 },
+  { num: 5, label: "Test Request", icon: Terminal },
+  { num: 6, label: "Dashboard", icon: CheckCircle2 },
 ];
 
 function loadState(): OnboardingState {
@@ -86,17 +89,31 @@ function saveState(state: OnboardingState) {
   localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(state));
 }
 
+function maxAllowedStep(state: OnboardingState): number {
+  if (!state.email) return 1;
+  if (!state.verified) return 2;
+  if (!state.apiKey) return 3;
+  if (!state.keyCopied) return 4;
+  if (!state.firstRequestOk) return 5;
+  return 6;
+}
+
 export function OnboardingWizard() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [state, setState] = useState<OnboardingState>(() => loadState());
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [keyRevealed, setKeyRevealed] = useState(false);
-  const [testResponse, setTestResponse] = useState<string>("");
+  const [testResponse, setTestResponse] = useState("");
   const [testStatus, setTestStatus] = useState<number | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const updateState = useCallback((patch: Partial<OnboardingState>) => {
     setState((prev) => {
       const next = { ...prev, ...patch };
+      const capped = Math.min(next.step, maxAllowedStep(next));
+      next.step = capped;
       saveState(next);
       return next;
     });
@@ -107,10 +124,52 @@ export function OnboardingWizard() {
     defaultValues: { organizationName: "", email: "", password: "" },
   });
 
-  const verifyForm = useForm<VerifyEmailInput>({
-    resolver: zodResolver(verifyEmailSchema),
-    defaultValues: { token: "" },
-  });
+  const refreshVerificationStatus = useCallback(async () => {
+    if (!session) return false;
+    setCheckingStatus(true);
+    try {
+      const status = await authService.getVerificationStatus();
+      if (status.emailVerified) {
+        updateState({ verified: true, step: 3 });
+        toast.success("Email verified!");
+        return true;
+      }
+      return false;
+    } catch {
+      try {
+        const profile = await profileService.getProfile();
+        if (profile.emailVerified) {
+          updateState({ verified: true, step: 3 });
+          toast.success("Email verified!");
+          return true;
+        }
+      } catch {
+        /* ignore */
+      }
+      return false;
+    } finally {
+      setCheckingStatus(false);
+    }
+  }, [session, updateState]);
+
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || state.verified || state.step < 2) {
+      return;
+    }
+
+    pollRef.current = setInterval(() => {
+      void refreshVerificationStatus();
+    }, 5000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [
+    sessionStatus,
+    state.verified,
+    state.step,
+    refreshVerificationStatus,
+  ]);
 
   const handleRegister = async (data: RegisterInput) => {
     setLoading(true);
@@ -122,8 +181,8 @@ export function OnboardingWizard() {
         redirect: false,
       });
       if (result?.error) throw new Error("Auto sign-in failed");
-      updateState({ step: 2, email: data.email });
-      toast.success("Account created!");
+      updateState({ step: 2, email: data.email, verified: false });
+      toast.success("Account created! Check your inbox for a verification email.");
     } catch (e) {
       toast.error(getErrorMessage(e));
     } finally {
@@ -131,26 +190,36 @@ export function OnboardingWizard() {
     }
   };
 
-  const handleVerify = async (data: VerifyEmailInput) => {
-    setLoading(true);
+  const handleResend = async () => {
+    setResending(true);
     try {
-      await authService.verifyEmail(data.token);
-      updateState({ step: 3, verified: true });
-      toast.success("Email verified!");
+      const result = await authService.resendVerificationEmail();
+      if (result.verificationEmailSent) {
+        toast.success("Verification email sent.");
+      } else {
+        toast.error(
+          "Could not send email. SMTP may not be configured on the server.",
+        );
+      }
     } catch (e) {
       toast.error(getErrorMessage(e));
     } finally {
-      setLoading(false);
+      setResending(false);
     }
   };
 
   const handleGenerateKey = async () => {
+    if (!state.verified) {
+      toast.error("Verify your email before generating an API key.");
+      return;
+    }
     setLoading(true);
     try {
       const key = await apiKeysService.create({
         environment: "TEST",
         name: "Onboarding Key",
       });
+      localStorage.setItem(API_KEY_STORAGE_KEY, key.rawToken);
       updateState({ step: 4, apiKey: key.rawToken });
       toast.success("API key created!");
     } catch (e) {
@@ -165,8 +234,9 @@ export function OnboardingWizard() {
     const ok = await copyToClipboard(state.apiKey);
     if (ok) {
       setKeyRevealed(true);
+      localStorage.setItem(API_KEY_STORAGE_KEY, state.apiKey);
       toast.success("Copied to clipboard");
-      updateState({ step: 5 });
+      updateState({ step: 5, keyCopied: true });
     }
   };
 
@@ -176,7 +246,7 @@ export function OnboardingWizard() {
     try {
       const result = await publicService.probeEndpoint(
         "GET",
-        "/v1/compliance/nida/mock/1200580064278104",
+        "/v1/locations/root-provinces",
         state.apiKey,
       );
       setTestStatus(result.status);
@@ -194,20 +264,25 @@ export function OnboardingWizard() {
     }
   };
 
+  const goBack = () => {
+    updateState({ step: Math.max(1, state.step - 1) });
+  };
+
   const progress = ((state.step - 1) / (STEPS.length - 1)) * 100;
+  const allowedMax = maxAllowedStep(state);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
+    <PublicPageShell className="py-8 sm:py-16">
+      <div className="mx-auto w-full max-w-4xl">
       <div className="text-center mb-8 sm:mb-10">
         <h1 className="font-heading text-2xl sm:text-4xl font-bold tracking-tight">
           Get started with Kigali-Pack
         </h1>
         <p className="mt-2 text-sm sm:text-base text-muted-foreground">
-          Create your account, verify email, and generate your first API key.
+          Register, verify your email, generate an API key, and send your first request.
         </p>
       </div>
 
-      {/* Step indicators */}
       <div className="mb-8 overflow-x-auto pb-2">
         <div className="flex min-w-max gap-1 sm:gap-2 justify-between">
           {STEPS.map((s) => (
@@ -216,6 +291,7 @@ export function OnboardingWizard() {
               className={cn(
                 "flex flex-col items-center gap-1 flex-1 min-w-[52px]",
                 state.step >= s.num ? "text-accent" : "text-muted-foreground",
+                s.num > allowedMax && "opacity-40",
               )}
             >
               <div
@@ -255,10 +331,10 @@ export function OnboardingWizard() {
           {state.step === 1 && (
             <div>
               <h2 className="font-heading text-xl font-semibold mb-1">
-                Step 1 — Create account
+                Step 1 — Register
               </h2>
               <p className="text-small text-muted-foreground mb-6">
-                Register your organization via POST /v1/auth/register
+                Create your organization and owner account.
               </p>
               <Form {...registerForm}>
                 <form
@@ -327,41 +403,73 @@ export function OnboardingWizard() {
               <h2 className="font-heading text-xl font-semibold mb-1">
                 Step 2 — Verify email
               </h2>
-              <p className="text-small text-muted-foreground mb-4">
-                POST /v1/auth/verify-email with your verification token.
-              </p>
-              <Alert className="mb-6">
-                <Database className="h-4 w-4" />
-                <AlertTitle>Local testing tip</AlertTitle>
+              <Alert className="mb-6 border-accent/30 bg-accent/5">
+                <Mail className="h-4 w-4" />
+                <AlertTitle>Verification email sent</AlertTitle>
                 <AlertDescription className="text-small">
-                  Find your verification token in the local PostgreSQL{" "}
-                  <code className="font-mono">auth_action_tokens</code> table
-                  where <code className="font-mono">action = &apos;VERIFY_EMAIL&apos;</code>.
+                  We sent a verification link to{" "}
+                  <strong>{state.email ?? session?.user?.email ?? "your email"}</strong>.
+                  Click the link in the email to continue. The link expires in 20 minutes.
                 </AlertDescription>
               </Alert>
-              <Form {...verifyForm}>
-                <form
-                  onSubmit={verifyForm.handleSubmit(handleVerify)}
-                  className="space-y-4"
+
+              {state.verified ? (
+                <Alert className="mb-6 border-success/30 bg-success/5">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <AlertTitle>Email verified</AlertTitle>
+                  <AlertDescription>
+                    You can now generate your API key.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-small text-muted-foreground">
+                    Waiting for verification… this page checks automatically every few seconds.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => void refreshVerificationStatus()}
+                      disabled={checkingStatus || !session}
+                      className="flex-1"
+                    >
+                      {checkingStatus ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Check status
+                    </Button>
+                    <Button
+                      onClick={() => void handleResend()}
+                      disabled={resending || !session}
+                      className="flex-1"
+                    >
+                      {resending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Mail className="h-4 w-4 mr-2" />
+                      )}
+                      Resend email
+                    </Button>
+                  </div>
+                  {!session && (
+                    <p className="text-small text-muted-foreground">
+                      Sign in to resend or check verification status.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {state.verified && (
+                <Button
+                  className="w-full mt-4"
+                  onClick={() => updateState({ step: 3 })}
                 >
-                  <FormField
-                    control={verifyForm.control}
-                    name="token"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Verification token</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Paste token from database" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    Verify email
-                  </Button>
-                </form>
-              </Form>
+                  Continue to Generate API Key
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           )}
 
@@ -371,8 +479,16 @@ export function OnboardingWizard() {
                 Step 3 — Generate API key
               </h2>
               <p className="text-small text-muted-foreground mb-6">
-                Provision your first TEST key via POST /v1/developer/api-keys
+                Provision your first TEST key. You must verify email before this step.
               </p>
+              {!state.verified && (
+                <Alert className="mb-4">
+                  <AlertTitle>Email verification required</AlertTitle>
+                  <AlertDescription>
+                    Complete Step 2 before generating keys.
+                  </AlertDescription>
+                </Alert>
+              )}
               {!session ? (
                 <Alert>
                   <AlertTitle>Session required</AlertTitle>
@@ -381,8 +497,16 @@ export function OnboardingWizard() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                <Button onClick={handleGenerateKey} disabled={loading} className="w-full">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Key className="h-4 w-4 mr-2" />}
+                <Button
+                  onClick={() => void handleGenerateKey()}
+                  disabled={loading || !state.verified}
+                  className="w-full"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Key className="h-4 w-4 mr-2" />
+                  )}
                   Generate TEST API key
                 </Button>
               )}
@@ -394,19 +518,24 @@ export function OnboardingWizard() {
               <h2 className="font-heading text-xl font-semibold mb-1">
                 Step 4 — Copy API key
               </h2>
-              <Alert className="border-destructive/30 bg-destructive/5">
+              <Alert className="border-destructive/30 bg-destructive/5 mb-4">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
-                <AlertTitle>Reveal once</AlertTitle>
+                <AlertTitle>Store securely</AlertTitle>
                 <AlertDescription>
-                  This key is shown only once. Store it securely before continuing.
+                  This key may not be shown again. Copy it before continuing.
                 </AlertDescription>
               </Alert>
+              <CodeBlock
+                code={`Authorization: Bearer ${keyRevealed ? state.apiKey : "kp_test_xxxxx"}`}
+                language="text"
+                title="Usage example"
+              />
               <CodeBlock
                 code={keyRevealed ? state.apiKey : "••••••••••••••••••••••••••••••••"}
                 language="text"
                 title="API Key"
               />
-              <Button onClick={handleCopyKey} className="w-full mt-4">
+              <Button onClick={() => void handleCopyKey()} className="w-full mt-4">
                 <Copy className="h-4 w-4 mr-2" />
                 Copy &amp; continue
               </Button>
@@ -416,13 +545,14 @@ export function OnboardingWizard() {
           {state.step === 5 && (
             <div>
               <h2 className="font-heading text-xl font-semibold mb-1">
-                Step 5 — Send first request
+                Step 5 — Test first request
               </h2>
               <p className="text-small text-muted-foreground mb-4">
-                Live GET /v1/compliance/nida/mock/1200580064278104 using your new key
+                Live GET /v1/locations/root-provinces using your new key
               </p>
               <CodeBlock
-                code={`GET /v1/compliance/nida/mock/1200580064278104\nAuthorization: Bearer ${state.apiKey?.slice(0, 12)}…`}
+                code={`curl ${API_PUBLIC_URL}/v1/locations/root-provinces \\
+  -H "Authorization: Bearer ${state.apiKey?.slice(0, 16)}…"`}
                 language="bash"
               />
               {testResponse && (
@@ -442,14 +572,27 @@ export function OnboardingWizard() {
                   <CodeBlock code={testResponse} language="json" title="Response" />
                 </div>
               )}
-              <Button
-                onClick={handleFirstRequest}
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Terminal className="h-4 w-4 mr-2" />}
-                Run test request
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                <Button
+                  onClick={() => void handleFirstRequest()}
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Terminal className="h-4 w-4 mr-2" />
+                  )}
+                  Run test request
+                </Button>
+                <Link
+                  href="/docs/quick-start"
+                  className="inline-flex flex-1 h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium hover:bg-hover"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Read docs
+                </Link>
+              </div>
             </div>
           )}
 
@@ -457,10 +600,10 @@ export function OnboardingWizard() {
             <div className="text-center py-4">
               <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
               <h2 className="font-heading text-2xl font-semibold text-success mb-2">
-                ✓ API Connected!
+                ✓ Ready to integrate
               </h2>
               <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                Next: Open Dashboard to view analytics, create webhooks, and start building.
+                Your API key works. Open the dashboard or explore the full documentation.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
@@ -471,28 +614,24 @@ export function OnboardingWizard() {
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Link>
                 <Link
-                  href="/dashboard/playground"
+                  href="/docs/introduction"
                   className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-6 text-sm font-medium hover:bg-hover"
                 >
-                  API Playground
+                  Full documentation
                 </Link>
               </div>
             </div>
           )}
 
           {state.step > 1 && state.step < 6 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-6"
-              onClick={() => updateState({ step: Math.max(1, state.step - 1) })}
-            >
+            <Button variant="ghost" size="sm" className="mt-6" onClick={goBack}>
               <ChevronLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
           )}
         </motion.div>
       </AnimatePresence>
-    </div>
+      </div>
+    </PublicPageShell>
   );
 }

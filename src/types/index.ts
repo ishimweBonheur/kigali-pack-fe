@@ -42,6 +42,7 @@ export interface AuthUser {
 export interface Profile {
   id: string;
   email: string;
+  emailVerified: boolean;
   role: string;
   organization: {
     id: string;

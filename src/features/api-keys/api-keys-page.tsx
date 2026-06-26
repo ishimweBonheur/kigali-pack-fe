@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Key, Plus, RotateCcw, Ban } from "lucide-react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PageHeader } from "@/components/shared/page-header";
@@ -55,7 +56,7 @@ import {
   createApiKeySchema,
   type CreateApiKeyInput,
 } from "@/schemas/api-keys";
-import { DEFAULT_PAGE_SIZE } from "@/constants";
+import { DEFAULT_PAGE_SIZE, API_KEY_STORAGE_KEY } from "@/constants";
 import { formatDateTime, getErrorMessage } from "@/utils";
 import { toast } from "sonner";
 import { billingService } from "@/services/billing.service";
@@ -93,6 +94,7 @@ export function ApiKeysPage() {
     mutationFn: apiKeysService.create,
     onSuccess: (data) => {
       setNewToken(data.rawToken);
+      localStorage.setItem(API_KEY_STORAGE_KEY, data.rawToken);
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
       toast.success("API key created");
       form.reset();
@@ -113,6 +115,7 @@ export function ApiKeysPage() {
     mutationFn: apiKeysService.rotate,
     onSuccess: (data) => {
       setNewToken(data.rawToken);
+      localStorage.setItem(API_KEY_STORAGE_KEY, data.rawToken);
       setDialogOpen(true);
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
       toast.success("API key rotated — save the new key now");
@@ -237,6 +240,42 @@ export function ApiKeysPage() {
           </Dialog>
         }
       />
+
+      <GlassCard className="mb-6 p-4 sm:p-5 space-y-3">
+        <h3 className="font-heading font-semibold text-sm">Using your API key</h3>
+        <p className="text-small text-muted-foreground">
+          Pass your key as a Bearer token on every authenticated request.
+        </p>
+        <code className="block p-3 rounded-lg bg-secondary font-mono text-small">
+          Authorization: Bearer kp_live_xxxxx
+        </code>
+        <Alert className="border-destructive/30 bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertTitle>Store securely</AlertTitle>
+          <AlertDescription className="text-small">
+            Raw keys are shown once at creation or rotation. This key may not be shown again.
+          </AlertDescription>
+        </Alert>
+        <div className="grid gap-3 sm:grid-cols-2 text-small">
+          <div className="rounded-lg border border-border p-3 font-mono text-xs overflow-x-auto">
+            {`curl ${process.env.NEXT_PUBLIC_API_URL ?? "https://api.kigalipack.rw"}/v1/locations/root-provinces \\
+  -H "Authorization: Bearer kp_test_xxxxx"`}
+          </div>
+          <div className="rounded-lg border border-border p-3 font-mono text-xs overflow-x-auto">
+            {`const res = await fetch(url, {
+  headers: {
+    Authorization: \`Bearer \${process.env.API_KEY}\`,
+  },
+});`}
+          </div>
+        </div>
+        <Link
+          href="/docs/environment-setup"
+          className="text-small text-accent hover:underline inline-block"
+        >
+          Full environment setup guide →
+        </Link>
+      </GlassCard>
 
       {usageQuery.data && (
         <GlassCard className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
